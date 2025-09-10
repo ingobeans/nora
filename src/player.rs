@@ -100,6 +100,10 @@ impl Player {
                 3.5
             } else {
                 1.5 * (5 - self.jump_frames) as f32 / 2.5
+            } * if !self.standing {
+                self.velocity.x.abs().min(2.0) / 2.0
+            } else {
+                1.0
             };
             self.jump_frames += 1;
         }
