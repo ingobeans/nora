@@ -1,9 +1,10 @@
 use macroquad::{miniquad::window::screen_size, prelude::*};
 use struct_iterable::Iterable;
 
-use crate::{assets::Assets, screens::*, utils::*};
+use crate::{assets::Assets, player::Player, screens::*, utils::*};
 
 mod assets;
+mod player;
 mod screens;
 mod utils;
 
@@ -22,6 +23,8 @@ async fn main() {
 
     let cameras = CameraBundle::new();
 
+    let mut player = Player::new();
+
     let mut screens = screens::ScreensRegistry::new();
     loop {
         clear_background(BLACK);
@@ -33,10 +36,17 @@ async fn main() {
         let mouse_y = mouse_y / scale_factor;
 
         let screen = screens.get_mut(screens::ScreenID::Test);
-        screen.update(ScreenUpdateContext {});
+        for camera in cameras.fields().iter() {
+            set_camera(*camera);
+            clear_background(BLACK.with_alpha(0.0));
+        }
+        screen.update(ScreenUpdateContext {
+            player: &mut player,
+        });
         screen.draw(ScreenDrawContext {
             assets: &assets,
             render_layers: &cameras,
+            player: &player,
         });
 
         set_default_camera();

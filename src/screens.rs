@@ -1,7 +1,7 @@
 use macroquad::prelude::*;
 use struct_iterable::Iterable;
 
-use crate::{assets::Assets, utils::*};
+use crate::{assets::Assets, player::Player, utils::*};
 
 pub struct CameraBundle {
     pub background: Camera2D,
@@ -37,8 +37,11 @@ impl CameraBundle {
 pub struct ScreenDrawContext<'a> {
     pub assets: &'a Assets,
     pub render_layers: &'a CameraBundle,
+    pub player: &'a Player,
 }
-pub struct ScreenUpdateContext {}
+pub struct ScreenUpdateContext<'a> {
+    pub player: &'a mut Player,
+}
 pub enum ScreenUpdateResult {
     /// Does nothing special
     Pass,
@@ -89,6 +92,9 @@ pub struct Map {
     detail2: Tiles,
 }
 impl Map {
+    pub fn get_collision_tile(&self, x: usize, y: usize) -> usize {
+        self.collision[x + y * 24]
+    }
     fn draw(&self, ctx: &ScreenDrawContext) {
         for ((_, layer), camera) in self.iter().zip(ctx.render_layers.fields().iter()) {
             if let Some(layer) = layer.downcast_ref::<Tiles>() {
@@ -156,7 +162,12 @@ impl TilemapScreen {
     }
 }
 impl Screen for TilemapScreen {
+    fn update(&mut self, ctx: ScreenUpdateContext) -> ScreenUpdateResult {
+        ctx.player.update(&self.map);
+        ScreenUpdateResult::Pass
+    }
     fn draw(&mut self, ctx: ScreenDrawContext) {
         self.map.draw(&ctx);
+        ctx.player.draw(&ctx);
     }
 }
