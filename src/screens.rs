@@ -1,4 +1,10 @@
-pub struct ScreenDrawContext {}
+use struct_iterable::Iterable;
+
+use crate::assets::Assets;
+
+pub struct ScreenDrawContext<'a> {
+    pub assets: &'a Assets,
+}
 pub struct ScreenUpdateContext {}
 pub enum ScreenUpdateResult {
     /// Does nothing special
@@ -37,14 +43,83 @@ impl ScreensRegistry {
     }
 }
 
+type Tiles = Vec<usize>;
+
+#[derive(Iterable)]
+pub struct Map {
+    background: Tiles,
+    walls: Tiles,
+    collision: Tiles,
+    detail: Tiles,
+    detail2: Tiles,
+}
+impl Map {
+    fn draw(&self, assets: &Assets) {
+        for (_, layer) in self.iter() {
+            if let Some(layer) = layer.downcast_ref::<Tiles>() {
+                for (index, tile) in layer.iter().enumerate() {
+                    if let Some(tile) = tile.checked_sub(1) {
+                        let x = (index % 24) as f32;
+                        let y = (index / 24) as f32;
+                        assets.tileset.draw_sprite(
+                            x * 16.0,
+                            y * 16.0,
+                            (tile % 32) as f32,
+                            (tile / 32) as f32,
+                            None,
+                        );
+                    }
+                }
+            }
+        }
+    }
+    fn from_file(data: &str) -> Self {
+        Self {
+            background: parse_tilemap_layer(&data, "Background"),
+            walls: parse_tilemap_layer(&data, "Walls"),
+            collision: parse_tilemap_layer(&data, "Collision"),
+            detail: parse_tilemap_layer(&data, "Detail"),
+            detail2: parse_tilemap_layer(&data, "Detail2"),
+        }
+    }
+}
+fn parse_tilemap_layer(xml: &str, layer_name: &str) -> Tiles {
+    let pattern = format!("name=\"{layer_name}\" ");
+    let xml = xml
+        .split_once(&pattern)
+        .unwrap()
+        .1
+        .split_once("<data encoding=\"csv\">")
+        .unwrap()
+        .1
+        .split_once("</data>")
+        .unwrap()
+        .0;
+    let mut split = xml.split(',');
+    let mut data: Tiles = Vec::new();
+    while let Some(tile) = split.next() {
+        let tile = tile.trim().parse::<usize>().unwrap();
+        data.push(tile);
+    }
+    data
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, enum_iterator::Sequence)]
 pub enum ScreenID {
     Test,
 }
-struct TestScreen;
-impl Screen for TestScreen {}
+struct TestScreen {
+    map: Map,
+}
+impl Screen for TestScreen {
+    fn draw(&mut self, ctx: ScreenDrawContext) {
+        self.map.draw(ctx.assets);
+    }
+}
 impl Default for TestScreen {
     fn default() -> Self {
-        Self
+        Self {
+            map: Map::from_file(include_str!("../assets/screens/street.tmx")),
+        }
     }
 }

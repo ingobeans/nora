@@ -13,8 +13,8 @@ async fn main() {
     let mut screens = screens::ScreensRegistry::new();
     loop {
         let screen = screens.get_mut(screens::ScreenID::Test);
-        screen.draw(ScreenDrawContext {});
         screen.update(ScreenUpdateContext {});
+        screen.draw(ScreenDrawContext { assets: &assets });
         next_frame().await;
     }
 }

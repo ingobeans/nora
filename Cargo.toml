@@ -1,6 +1,6 @@
 [package]
 name = "nora"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 
 [dependencies]
@@ -8,3 +8,4 @@ asefile = "0.3.8"
 macroquad = "0.4.14"
 image = "0.24.9"
 enum-iterator = "2.3.0"
+struct_iterable = "0.1.1"

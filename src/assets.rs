@@ -13,7 +13,7 @@ impl Assets {
         Self {
             tileset: Spritesheet::new(
                 load_ase_texture(include_bytes!("../assets/tileset.ase"), None),
-                8.0,
+                16.0,
             ),
         }
     }
@@ -48,13 +48,7 @@ impl Spritesheet {
             w: self.sprite_size,
             h: self.sprite_size,
         }));
-        draw_texture_ex(
-            &self.texture,
-            screen_x - self.sprite_size / 2.0,
-            screen_y - self.sprite_size / 2.0,
-            WHITE,
-            p,
-        );
+        draw_texture_ex(&self.texture, screen_x, screen_y, WHITE, p);
     }
 }
 fn load_ase_texture(bytes: &[u8], layer: Option<u32>) -> Texture2D {
