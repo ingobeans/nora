@@ -1,9 +1,42 @@
+use macroquad::prelude::*;
 use struct_iterable::Iterable;
 
-use crate::assets::Assets;
+use crate::{assets::Assets, utils::*};
+
+pub struct CameraBundle {
+    pub background: Camera2D,
+    pub walls: Camera2D,
+    pub collisions: Camera2D,
+    pub detail: Camera2D,
+    pub detail2: Camera2D,
+    pub ui: Camera2D,
+}
+impl CameraBundle {
+    pub fn new() -> Self {
+        Self {
+            background: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
+            walls: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
+            collisions: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
+            detail: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
+            detail2: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
+            ui: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
+        }
+    }
+    pub fn fields(&self) -> [&Camera2D; 6] {
+        [
+            &self.background,
+            &self.walls,
+            &self.collisions,
+            &self.detail,
+            &self.detail2,
+            &self.ui,
+        ]
+    }
+}
 
 pub struct ScreenDrawContext<'a> {
     pub assets: &'a Assets,
+    pub render_layers: &'a CameraBundle,
 }
 pub struct ScreenUpdateContext {}
 pub enum ScreenUpdateResult {
@@ -38,7 +71,9 @@ impl ScreensRegistry {
     }
     fn load_screen_from_id(id: ScreenID) -> Box<dyn Screen> {
         match id {
-            ScreenID::Test => Box::new(TestScreen::default()),
+            ScreenID::Test => Box::new(TilemapScreen::new(include_str!(
+                "../assets/screens/test.tmx"
+            ))),
         }
     }
 }
@@ -54,14 +89,16 @@ pub struct Map {
     detail2: Tiles,
 }
 impl Map {
-    fn draw(&self, assets: &Assets) {
-        for (_, layer) in self.iter() {
+    fn draw(&self, ctx: &ScreenDrawContext) {
+        for ((_, layer), camera) in self.iter().zip(ctx.render_layers.fields().iter()) {
             if let Some(layer) = layer.downcast_ref::<Tiles>() {
                 for (index, tile) in layer.iter().enumerate() {
                     if let Some(tile) = tile.checked_sub(1) {
                         let x = (index % 24) as f32;
                         let y = (index / 24) as f32;
-                        assets.tileset.draw_sprite(
+                        set_camera(*camera);
+
+                        ctx.assets.tileset.draw_sprite(
                             x * 16.0,
                             y * 16.0,
                             (tile % 32) as f32,
@@ -108,18 +145,18 @@ fn parse_tilemap_layer(xml: &str, layer_name: &str) -> Tiles {
 pub enum ScreenID {
     Test,
 }
-struct TestScreen {
+struct TilemapScreen {
     map: Map,
 }
-impl Screen for TestScreen {
-    fn draw(&mut self, ctx: ScreenDrawContext) {
-        self.map.draw(ctx.assets);
+impl TilemapScreen {
+    fn new(file: &str) -> Self {
+        Self {
+            map: Map::from_file(file),
+        }
     }
 }
-impl Default for TestScreen {
-    fn default() -> Self {
-        Self {
-            map: Map::from_file(include_str!("../assets/screens/street.tmx")),
-        }
+impl Screen for TilemapScreen {
+    fn draw(&mut self, ctx: ScreenDrawContext) {
+        self.map.draw(&ctx);
     }
 }

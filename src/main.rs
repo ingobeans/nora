@@ -1,20 +1,61 @@
-use macroquad::prelude::*;
+use macroquad::{miniquad::window::screen_size, prelude::*};
+use struct_iterable::Iterable;
 
-use crate::{assets::Assets, screens::*};
+use crate::{assets::Assets, screens::*, utils::*};
 
 mod assets;
 mod screens;
 mod utils;
 
-#[macroquad::main("nora")]
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "nora".to_string(),
+        window_width: SCREEN_WIDTH as i32 * 3,
+        window_height: SCREEN_HEIGHT as i32 * 3,
+        ..Default::default()
+    }
+}
+#[macroquad::main(window_conf)]
 async fn main() {
     println!("nora v{}", env!("CARGO_PKG_VERSION"));
     let assets = Assets::load();
+
+    let cameras = CameraBundle::new();
+
     let mut screens = screens::ScreensRegistry::new();
     loop {
+        clear_background(BLACK);
+        let (actual_screen_width, actual_screen_height) = screen_size();
+        let scale_factor =
+            (actual_screen_width / SCREEN_WIDTH).min(actual_screen_height / SCREEN_HEIGHT);
+        let (mouse_x, mouse_y) = mouse_position();
+        let mouse_x = mouse_x / scale_factor;
+        let mouse_y = mouse_y / scale_factor;
+
         let screen = screens.get_mut(screens::ScreenID::Test);
         screen.update(ScreenUpdateContext {});
-        screen.draw(ScreenDrawContext { assets: &assets });
+        screen.draw(ScreenDrawContext {
+            assets: &assets,
+            render_layers: &cameras,
+        });
+
+        set_default_camera();
+        // draw cameras
+        for camera in cameras.fields().iter() {
+            draw_texture_ex(
+                &camera.render_target.as_ref().unwrap().texture,
+                0.0,
+                0.0,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(Vec2::new(
+                        SCREEN_WIDTH * scale_factor,
+                        SCREEN_HEIGHT * scale_factor,
+                    )),
+                    ..Default::default()
+                },
+            );
+        }
         next_frame().await;
     }
 }
