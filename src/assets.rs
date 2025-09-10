@@ -13,7 +13,7 @@ impl Assets {
         Self {
             tileset: Spritesheet::new(
                 load_ase_texture(include_bytes!("../assets/tileset.ase"), None),
-                16.0,
+                8.0,
             ),
         }
     }

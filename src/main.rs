@@ -32,11 +32,11 @@ async fn main() {
         let scale_factor =
             (actual_screen_width / SCREEN_WIDTH).min(actual_screen_height / SCREEN_HEIGHT);
         let (mouse_x, mouse_y) = mouse_position();
-        let mouse_x = mouse_x / scale_factor;
-        let mouse_y = mouse_y / scale_factor;
+        let _mouse_x = mouse_x / scale_factor;
+        let _mouse_y = mouse_y / scale_factor;
 
         let screen = screens.get_mut(screens::ScreenID::Test);
-        for camera in cameras.fields().iter() {
+        for camera in cameras.get_redrawn().iter() {
             set_camera(*camera);
             clear_background(BLACK.with_alpha(0.0));
         }
@@ -51,7 +51,7 @@ async fn main() {
 
         set_default_camera();
         // draw cameras
-        for camera in cameras.fields().iter() {
+        for camera in cameras.get_all().iter() {
             draw_texture_ex(
                 &camera.render_target.as_ref().unwrap().texture,
                 0.0,

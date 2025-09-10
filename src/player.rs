@@ -99,14 +99,14 @@ impl Player {
 
         let mut new = self.pos + self.velocity;
 
-        let tile_x = self.pos.x / 16.0;
-        let tile_y = self.pos.y / 16.0;
+        let tile_x = self.pos.x / 8.0;
+        let tile_y = self.pos.y / 8.0;
 
         let tiles_y = [
-            (tile_x.trunc(), ceil_g(new.y / 16.0)),
-            (ceil_g(tile_x), ceil_g(new.y / 16.0)),
-            (tile_x.trunc(), (new.y / 16.0).trunc()),
-            (ceil_g(tile_x), (new.y / 16.0).trunc()),
+            (tile_x.trunc(), ceil_g(new.y / 8.0)),
+            (ceil_g(tile_x), ceil_g(new.y / 8.0)),
+            (tile_x.trunc(), (new.y / 8.0).trunc()),
+            (ceil_g(tile_x), (new.y / 8.0).trunc()),
         ];
 
         self.on_ground = false;
@@ -114,10 +114,10 @@ impl Player {
             let tile = map.get_collision_tile(tx as _, ty as _);
             if tile != 0 {
                 let c = if self.velocity.y < 0.0 {
-                    tile_y.floor() * 16.0
+                    tile_y.floor() * 8.0
                 } else {
                     self.on_ground = true;
-                    tile_y.ceil() * 16.0
+                    tile_y.ceil() * 8.0
                 };
                 new.y = c;
                 self.velocity.y = 0.0;
@@ -125,19 +125,19 @@ impl Player {
             }
         }
         let tiles_x = [
-            ((new.x / 16.0).trunc(), ceil_g(new.y / 16.0)),
-            (ceil_g(new.x / 16.0), ceil_g(new.y / 16.0)),
-            (ceil_g(new.x / 16.0), (new.y / 16.0).trunc()),
-            ((new.x / 16.0).trunc(), (new.y / 16.0).trunc()),
+            ((new.x / 8.0).trunc(), ceil_g(new.y / 8.0)),
+            (ceil_g(new.x / 8.0), ceil_g(new.y / 8.0)),
+            (ceil_g(new.x / 8.0), (new.y / 8.0).trunc()),
+            ((new.x / 8.0).trunc(), (new.y / 8.0).trunc()),
         ];
 
         for (tx, ty) in tiles_x {
             let tile = map.get_collision_tile(tx as _, ty as _);
             if tile != 0 {
                 let c = if self.velocity.x < 0.0 {
-                    tile_x.floor() * 16.0
+                    tile_x.floor() * 8.0
                 } else {
-                    tile_x.ceil() * 16.0
+                    tile_x.ceil() * 8.0
                 };
                 new.x = c;
                 self.velocity.x = 0.0;
@@ -153,7 +153,7 @@ impl Player {
 
         self.camera_pos.x = self.pos.x.floor();
         let delta = self.camera_pos.y - self.pos.y.floor();
-        let max_delta = 3.0 * 16.0;
+        let max_delta = 3.0 * 8.0;
         if delta.abs() >= max_delta {
             self.camera_pos.y =
                 max_delta * if delta < 0.0 { -1.0 } else { 1.0 } + self.pos.y.floor();
@@ -165,11 +165,11 @@ impl Player {
         } else {
             &self.idle_animation
         };
-        set_camera(&ctx.render_layers.detail2);
+        set_camera(&ctx.render_layers.entities);
         draw_texture_ex(
             animation.get_at_time(self.anim_frame),
-            self.pos.floor().x,
-            self.pos.floor().y,
+            self.pos.floor().x - 4.0,
+            self.pos.floor().y - 8.0,
             WHITE,
             DrawTextureParams {
                 flip_x: !self.facing_right,

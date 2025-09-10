@@ -4,31 +4,32 @@ use struct_iterable::Iterable;
 use crate::{assets::Assets, player::Player, utils::*};
 
 pub struct CameraBundle {
-    pub background: Camera2D,
-    pub walls: Camera2D,
-    pub collisions: Camera2D,
-    pub detail: Camera2D,
-    pub detail2: Camera2D,
+    /// World layers are not cleared every frame, as they are intended to be static.
+    pub world: Camera2D,
+    /// World layers are not cleared every frame, as they are intended to be static.
+    pub world_foreground: Camera2D,
+    /// Render layer entities are drawn onto.
+    pub entities: Camera2D,
+    /// Unused as of yet. Should be unaffected to manipulations to the rendering.
     pub ui: Camera2D,
 }
 impl CameraBundle {
     pub fn new() -> Self {
         Self {
-            background: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
-            walls: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
-            collisions: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
-            detail: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
-            detail2: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
+            world: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
+            entities: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
+            world_foreground: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
             ui: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
         }
     }
-    pub fn fields(&self) -> [&Camera2D; 6] {
+    pub fn get_redrawn(&self) -> [&Camera2D; 2] {
+        [&self.entities, &self.ui]
+    }
+    pub fn get_all(&self) -> [&Camera2D; 4] {
         [
-            &self.background,
-            &self.walls,
-            &self.collisions,
-            &self.detail,
-            &self.detail2,
+            &self.world,
+            &self.entities,
+            &self.world_foreground,
             &self.ui,
         ]
     }
@@ -47,6 +48,7 @@ pub enum ScreenUpdateResult {
     Pass,
 }
 
+#[expect(unused_variables)]
 pub trait Screen {
     fn update(&mut self, ctx: ScreenUpdateContext) -> ScreenUpdateResult {
         ScreenUpdateResult::Pass
@@ -93,28 +95,28 @@ pub struct Map {
 }
 impl Map {
     pub fn get_collision_tile(&self, x: usize, y: usize) -> usize {
-        if x >= 24 {
+        if x >= 48 {
             return 0;
         }
-        if y >= 14 {
+        if y >= 27 {
             return 0;
         }
-        self.collision[x + y * 24]
+        self.collision[x + y * 48]
     }
     fn draw(&self, ctx: &ScreenDrawContext) {
-        for ((_, layer), camera) in self.iter().zip(ctx.render_layers.fields().iter()) {
+        set_camera(&ctx.render_layers.world);
+        for (_, layer) in self.iter() {
             if let Some(layer) = layer.downcast_ref::<Tiles>() {
                 for (index, tile) in layer.iter().enumerate() {
                     if let Some(tile) = tile.checked_sub(1) {
-                        let x = (index % 24) as f32;
-                        let y = (index / 24) as f32;
-                        set_camera(*camera);
+                        let x = (index % 48) as f32;
+                        let y = (index / 48) as f32;
 
                         ctx.assets.tileset.draw_sprite(
-                            x * 16.0,
-                            y * 16.0,
-                            (tile % 32) as f32,
-                            (tile / 32) as f32,
+                            x * 8.0,
+                            y * 8.0,
+                            (tile % 64) as f32,
+                            (tile / 64) as f32,
                             None,
                         );
                     }
@@ -158,12 +160,14 @@ pub enum ScreenID {
     Test,
 }
 struct TilemapScreen {
+    first_frame: bool,
     map: Map,
 }
 impl TilemapScreen {
     fn new(file: &str) -> Self {
         Self {
             map: Map::from_file(file),
+            first_frame: true,
         }
     }
 }
@@ -174,6 +178,9 @@ impl Screen for TilemapScreen {
     }
     fn draw(&mut self, ctx: ScreenDrawContext) {
         self.map.draw(&ctx);
+        if self.first_frame {
+            self.first_frame = false;
+        }
         ctx.player.draw(&ctx);
     }
 }
