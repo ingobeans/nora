@@ -1,4 +1,4 @@
-use macroquad::{miniquad::window::screen_size, prelude::*};
+use macroquad::{miniquad::window::screen_size, prelude::*, time};
 use struct_iterable::Iterable;
 
 use crate::{assets::Assets, player::Player, screens::*, utils::*};
@@ -26,6 +26,7 @@ async fn main() {
     let mut player = Player::new();
 
     let mut screens = screens::ScreensRegistry::new();
+    let mut last = time::get_time();
     loop {
         clear_background(BLACK);
         let (actual_screen_width, actual_screen_height) = screen_size();
@@ -40,9 +41,14 @@ async fn main() {
             set_camera(*camera);
             clear_background(BLACK.with_alpha(0.0));
         }
-        screen.update(ScreenUpdateContext {
-            player: &mut player,
-        });
+        let now = time::get_time();
+        if now - last >= 1.0 / 60.0 {
+            last = now;
+            screen.update(ScreenUpdateContext {
+                player: &mut player,
+            });
+        }
+
         screen.draw(ScreenDrawContext {
             assets: &assets,
             render_layers: &cameras,

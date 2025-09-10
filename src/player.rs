@@ -18,8 +18,10 @@ pub struct Player {
     pub facing_right: bool,
     pub on_ground: bool,
     pub jump_frames: u8,
+    pub standing: bool,
     idle_animation: Animation,
     sprint_animation: Animation,
+    slide_animation: Animation,
 }
 impl Player {
     pub fn new() -> Self {
@@ -31,37 +33,48 @@ impl Player {
             jump_frames: 0,
             facing_right: true,
             on_ground: false,
+            standing: true,
             idle_animation: Animation::from_file(include_bytes!(
                 "../assets/entities/player/idle.ase"
             )),
             sprint_animation: Animation::from_file(include_bytes!(
                 "../assets/entities/player/sprint.ase"
             )),
+            slide_animation: Animation::from_file(include_bytes!(
+                "../assets/entities/player/slide.ase"
+            )),
         }
+    }
+    fn can_slide(&self) -> bool {
+        true
     }
     pub fn update(&mut self, map: &Map) {
         self.anim_frame += 1000 / 60;
 
-        // only allow noclip on debug builds
-        #[cfg(debug_assertions)]
-        let noclip = is_key_down(KeyCode::LeftShift);
-        #[cfg(not(debug_assertions))]
-        let noclip = { false };
+        let noclip = false;
 
         let mut forces = Vec2::ZERO;
 
         if !noclip {
             forces.y += GRAVITY
         }
+        let mut speed = PLAYER_SPEED;
+        let can_slide = self.can_slide();
+        if self.standing && is_key_down(KeyCode::LeftShift) && can_slide {
+            speed *= 2.0;
+        }
 
-        if is_key_down(KeyCode::A) {
-            forces.x -= 1.0;
-            self.facing_right = false;
+        if self.standing {
+            if is_key_down(KeyCode::A) {
+                forces.x -= speed;
+                self.facing_right = false;
+            }
+            if is_key_down(KeyCode::D) {
+                forces.x += speed;
+                self.facing_right = true;
+            }
         }
-        if is_key_down(KeyCode::D) {
-            forces.x += 1.0;
-            self.facing_right = true;
-        }
+        self.standing = !is_key_down(KeyCode::LeftShift) || !can_slide;
 
         if self.on_ground {
             self.jump_frames = 0;
@@ -69,7 +82,11 @@ impl Player {
         if is_key_down(KeyCode::Space)
             && (self.on_ground || (self.jump_frames > 0 && self.jump_frames < 5))
         {
-            forces.y -= if self.jump_frames == 0 { 1.5 } else { 1.0 };
+            forces.y -= if self.jump_frames == 0 {
+                3.5
+            } else {
+                1.5 * (5 - self.jump_frames) as f32 / 2.5
+            };
             self.jump_frames += 1;
         }
 
@@ -89,7 +106,9 @@ impl Player {
         }
 
         forces.x -= self.velocity.x
-            * if self.on_ground {
+            * if !self.standing {
+                0.02
+            } else if self.on_ground {
                 GROUND_FRICTION
             } else {
                 AIR_DRAG
@@ -102,13 +121,19 @@ impl Player {
         let tile_x = self.pos.x / 8.0;
         let tile_y = self.pos.y / 8.0;
 
-        let tiles_y = [
+        let mut tiles_y = vec![
             (tile_x.trunc(), ceil_g(new.y / 8.0)),
             (ceil_g(tile_x), ceil_g(new.y / 8.0)),
             (tile_x.trunc(), (new.y / 8.0).trunc()),
             (ceil_g(tile_x), (new.y / 8.0).trunc()),
         ];
+        if self.standing {
+            tiles_y.push((tile_x.trunc(), (new.y / 8.0).trunc() - 1.0));
+            tiles_y.push((ceil_g(tile_x), (new.y / 8.0).trunc() - 1.0));
+        }
 
+        let was_on_ground = self.on_ground;
+        let old_velocity = self.velocity;
         self.on_ground = false;
         for (tx, ty) in tiles_y {
             let tile = map.get_collision_tile(tx as _, ty as _);
@@ -124,12 +149,16 @@ impl Player {
                 break;
             }
         }
-        let tiles_x = [
+        let mut tiles_x = vec![
             ((new.x / 8.0).trunc(), ceil_g(new.y / 8.0)),
             (ceil_g(new.x / 8.0), ceil_g(new.y / 8.0)),
             (ceil_g(new.x / 8.0), (new.y / 8.0).trunc()),
             ((new.x / 8.0).trunc(), (new.y / 8.0).trunc()),
         ];
+        if self.standing {
+            tiles_x.push(((new.x / 8.0).trunc(), (new.y / 8.0).trunc() - 1.0));
+            tiles_x.push((ceil_g(new.x / 8.0), (new.y / 8.0).trunc() - 1.0));
+        }
 
         for (tx, ty) in tiles_x {
             let tile = map.get_collision_tile(tx as _, ty as _);
@@ -148,7 +177,20 @@ impl Player {
         if self.velocity.x.abs() <= 0.3 {
             self.velocity.x = 0.0;
         }
-        self.velocity.x = self.velocity.x.clamp(-MAX_VELOCITY, MAX_VELOCITY);
+        if self.standing {
+            self.velocity.x = self.velocity.x.clamp(-MAX_RUN_VELOCITY, MAX_RUN_VELOCITY);
+        }
+        if !was_on_ground
+            && self.on_ground
+            && !self.standing
+            && self.velocity.x.abs() > 1.0
+            && old_velocity.y > 0.0
+        {
+            let m = if self.facing_right { 1.0 } else { -1.0 };
+
+            self.velocity.x += (1.0 / (old_velocity.y) + 2.0) * m;
+        }
+
         self.pos = new;
 
         self.camera_pos.x = self.pos.x.floor();
@@ -160,7 +202,9 @@ impl Player {
         }
     }
     pub fn draw(&self, ctx: &ScreenDrawContext) {
-        let animation = if self.velocity.length() != 0.0 {
+        let animation = if !self.standing {
+            &self.slide_animation
+        } else if self.velocity.length() != 0.0 {
             &self.sprint_animation
         } else {
             &self.idle_animation
