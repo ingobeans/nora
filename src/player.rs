@@ -17,6 +17,7 @@ pub struct Player {
     pub anim_frame: u32,
     pub facing_right: bool,
     pub on_ground: bool,
+    pub head_covered: bool,
     pub jump_frames: u8,
     pub standing: bool,
     idle_animation: Animation,
@@ -33,6 +34,7 @@ impl Player {
             jump_frames: 0,
             facing_right: true,
             on_ground: false,
+            head_covered: false,
             standing: true,
             idle_animation: Animation::from_file(include_bytes!(
                 "../assets/entities/player/idle.ase"
@@ -60,11 +62,24 @@ impl Player {
         }
         let mut speed = PLAYER_SPEED;
         let can_slide = self.can_slide();
-        if self.standing && is_key_down(KeyCode::LeftShift) && can_slide {
-            speed *= 2.0;
-        }
+        let shift_pressed = is_key_down(KeyCode::LeftShift);
 
         if self.standing {
+            if shift_pressed && can_slide {
+                self.standing = false;
+                speed *= 1.5;
+            }
+        } else {
+            if !shift_pressed && !self.head_covered {
+                self.standing = true;
+            }
+            speed = 0.0;
+            if self.velocity.x.abs() < 0.5 && self.head_covered {
+                forces.x += 0.5 * if self.facing_right { 1.0 } else { -1.0 };
+            }
+        }
+
+        if speed > 0.0 {
             if is_key_down(KeyCode::A) {
                 forces.x -= speed;
                 self.facing_right = false;
@@ -74,7 +89,6 @@ impl Player {
                 self.facing_right = true;
             }
         }
-        self.standing = !is_key_down(KeyCode::LeftShift) || !can_slide;
 
         if self.on_ground {
             self.jump_frames = 0;
@@ -171,6 +185,20 @@ impl Player {
                 new.x = c;
                 self.velocity.x = 0.0;
                 break;
+            }
+        }
+
+        // check if head covered
+        let m = if self.standing { 2.0 } else { 1.0 };
+        let tiles_head = [
+            ((new.x / 8.0).trunc(), ceil_g(new.y / 8.0) - m),
+            (ceil_g(new.x / 8.0), ceil_g(new.y / 8.0) - m),
+        ];
+        self.head_covered = false;
+        for (tx, ty) in tiles_head {
+            let tile = map.get_collision_tile(tx as _, ty as _);
+            if tile != 0 {
+                self.head_covered = true;
             }
         }
 
