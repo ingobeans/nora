@@ -93,6 +93,12 @@ pub struct Map {
 }
 impl Map {
     pub fn get_collision_tile(&self, x: usize, y: usize) -> usize {
+        if x >= 24 {
+            return 0;
+        }
+        if y >= 14 {
+            return 0;
+        }
         self.collision[x + y * 24]
     }
     fn draw(&self, ctx: &ScreenDrawContext) {
