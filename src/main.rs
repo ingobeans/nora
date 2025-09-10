@@ -1,5 +1,4 @@
 use macroquad::{miniquad::window::screen_size, prelude::*, time};
-use struct_iterable::Iterable;
 
 use crate::{assets::Assets, player::Player, screens::*, utils::*};
 
