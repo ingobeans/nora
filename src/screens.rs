@@ -125,23 +125,30 @@ impl Map {
         }
         self.special[x + y * 48]
     }
+    fn layers(&self) -> [&Tiles; 5] {
+        [
+            &self.background,
+            &self.walls,
+            &self.collision,
+            &self.detail,
+            &self.detail2,
+        ]
+    }
     fn draw(&self, ctx: &ScreenUpdateContext) {
         set_camera(&ctx.render_layers.world);
-        for (_, layer) in self.iter() {
-            if let Some(layer) = layer.downcast_ref::<Tiles>() {
-                for (index, tile) in layer.iter().enumerate() {
-                    if let Some(tile) = tile.checked_sub(1) {
-                        let x = (index % 48) as f32;
-                        let y = (index / 48) as f32;
+        for layer in self.layers().iter() {
+            for (index, tile) in layer.iter().enumerate() {
+                if let Some(tile) = tile.checked_sub(1) {
+                    let x = (index % 48) as f32;
+                    let y = (index / 48) as f32;
 
-                        ctx.assets.tileset.draw_sprite(
-                            x * 8.0,
-                            y * 8.0,
-                            (tile % 64) as f32,
-                            (tile / 64) as f32,
-                            None,
-                        );
-                    }
+                    ctx.assets.tileset.draw_sprite(
+                        x * 8.0,
+                        y * 8.0,
+                        (tile % 64) as f32,
+                        (tile / 64) as f32,
+                        None,
+                    );
                 }
             }
         }
