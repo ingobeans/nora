@@ -51,30 +51,32 @@ impl NonPlayerEntity for HumanoidEnemy {
         let player_delta = ctx.player.pos - self.pos;
 
         // move towards player
-        forces.x = player_delta.x;
-        forces = forces.clamp_length_max(1.0) * self.speed;
+        if player_delta.length() >= 8.0 {
+            forces.x = player_delta.x;
+            forces = forces.clamp_length_max(1.0) * self.speed;
+
+            // handle special pathfinding
+            let tile = (self.pos / 8.0).round();
+            let tile = map.get_special_tile(tile.x as _, tile.y as _);
+
+            let should_jump = tile != 0
+                && match tile - 1 {
+                    0 => true,
+                    1 => player_delta.x < 0.0,
+                    2 => player_delta.x > 0.0,
+
+                    _ => false,
+                };
+            if should_jump && self.on_ground {
+                forces.y -= 8.5;
+            }
+        }
         forces.x -= self.velocity.x
             * if self.on_ground {
                 GROUND_FRICTION
             } else {
                 AIR_DRAG
             };
-
-        // handle special pathfinding
-        let tile = (self.pos / 8.0).round();
-        let tile = map.get_special_tile(tile.x as _, tile.y as _);
-
-        let should_jump = tile != 0
-            && match tile - 1 {
-                0 => true,
-                1 => player_delta.x < 0.0,
-                2 => player_delta.x > 0.0,
-
-                _ => false,
-            };
-        if should_jump && self.on_ground {
-            forces.y -= 8.5;
-        }
 
         let result =
             update_physics_entity(&mut self.pos, &mut forces, &mut self.velocity, true, map);
