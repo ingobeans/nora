@@ -2,7 +2,7 @@ use macroquad::prelude::*;
 
 use crate::{
     assets::*,
-    entity::{Entity, update_physics_entity},
+    entity::{NonPlayerEntity, update_physics_entity},
     screens::{Map, ScreenUpdateContext},
     utils::*,
 };
@@ -47,9 +47,7 @@ impl Player {
     fn can_slide(&self) -> bool {
         true
     }
-}
-impl Entity for Player {
-    fn update(&mut self, map: &Map) {
+    pub fn update(&mut self, map: &Map) {
         self.anim_frame += 1000 / 60;
 
         let mut forces = Vec2::ZERO;
@@ -142,7 +140,7 @@ impl Entity for Player {
                 max_delta * if delta < 0.0 { -1.0 } else { 1.0 } + self.pos.y.floor();
         }
     }
-    fn draw(&self, ctx: &ScreenUpdateContext) {
+    pub fn draw(&self, ctx: &ScreenUpdateContext) {
         let animation = if !self.standing {
             &self.slide_animation
         } else if self.velocity.length() != 0.0 {

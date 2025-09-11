@@ -3,7 +3,7 @@ use struct_iterable::Iterable;
 
 use crate::{
     assets::{Animation, Assets},
-    entity::{Entity, HumanoidEnemy},
+    entity::{HumanoidEnemy, NonPlayerEntity},
     player::Player,
     utils::*,
 };
@@ -88,6 +88,7 @@ impl ScreensRegistry {
                 vec![Box::new(HumanoidEnemy::new(
                     Vec2::new(25.0, 17.0) * 8.0,
                     Animation::from_file(include_bytes!("../assets/entities/enemy.ase")),
+                    0.4,
                 ))],
             )),
         }
@@ -103,6 +104,7 @@ pub struct Map {
     collision: Tiles,
     detail: Tiles,
     detail2: Tiles,
+    special: Tiles,
 }
 impl Map {
     pub fn get_collision_tile(&self, x: usize, y: usize) -> usize {
@@ -113,6 +115,15 @@ impl Map {
             return 0;
         }
         self.collision[x + y * 48]
+    }
+    pub fn get_special_tile(&self, x: usize, y: usize) -> usize {
+        if x >= 48 {
+            return 0;
+        }
+        if y >= 27 {
+            return 0;
+        }
+        self.special[x + y * 48]
     }
     fn draw(&self, ctx: &ScreenUpdateContext) {
         set_camera(&ctx.render_layers.world);
@@ -142,6 +153,7 @@ impl Map {
             collision: parse_tilemap_layer(&data, "Collision"),
             detail: parse_tilemap_layer(&data, "Detail"),
             detail2: parse_tilemap_layer(&data, "Detail2"),
+            special: parse_tilemap_layer(&data, "Special"),
         }
     }
 }
@@ -167,10 +179,10 @@ fn parse_tilemap_layer(xml: &str, layer_name: &str) -> Tiles {
 }
 struct TilemapScreen {
     map: Map,
-    entities: Vec<Box<dyn Entity>>,
+    entities: Vec<Box<dyn NonPlayerEntity>>,
 }
 impl TilemapScreen {
-    fn new(file: &str, entities: Vec<Box<dyn Entity>>) -> Self {
+    fn new(file: &str, entities: Vec<Box<dyn NonPlayerEntity>>) -> Self {
         Self {
             map: Map::from_file(file),
             entities,
@@ -183,7 +195,7 @@ impl Screen for TilemapScreen {
     }
     fn update(&mut self, ctx: ScreenUpdateContext) -> ScreenUpdateResult {
         for entity in self.entities.iter_mut() {
-            entity.update(&self.map);
+            entity.update(&self.map, &ctx);
         }
         ctx.player.update(&self.map);
         ScreenUpdateResult::Pass

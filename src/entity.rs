@@ -11,8 +11,8 @@ fn ceil_g(a: f32) -> f32 {
 }
 
 #[expect(unused_variables)]
-pub trait Entity {
-    fn update(&mut self, map: &Map) {}
+pub trait NonPlayerEntity {
+    fn update(&mut self, map: &Map, ctx: &ScreenUpdateContext) {}
     fn draw(&self, ctx: &ScreenUpdateContext) {}
 }
 pub struct HumanoidEnemy {
@@ -20,18 +20,22 @@ pub struct HumanoidEnemy {
     pub velocity: Vec2,
     pub anim_frame: u32,
     pub animation: Animation,
+    pub on_ground: bool,
+    pub speed: f32,
 }
 impl HumanoidEnemy {
-    pub fn new(pos: Vec2, animation: Animation) -> Self {
+    pub fn new(pos: Vec2, animation: Animation, speed: f32) -> Self {
         Self {
             pos,
             velocity: Vec2::ZERO,
             anim_frame: 0,
             animation,
+            on_ground: false,
+            speed,
         }
     }
 }
-impl Entity for HumanoidEnemy {
+impl NonPlayerEntity for HumanoidEnemy {
     fn draw(&self, ctx: &ScreenUpdateContext) {
         set_camera(&ctx.render_layers.entities);
         draw_texture(
@@ -41,10 +45,40 @@ impl Entity for HumanoidEnemy {
             WHITE,
         );
     }
-    fn update(&mut self, map: &Map) {
+    fn update(&mut self, map: &Map, ctx: &ScreenUpdateContext) {
         self.anim_frame += 1000 / 60;
         let mut forces = Vec2::ZERO;
-        update_physics_entity(&mut self.pos, &mut forces, &mut self.velocity, true, map);
+        let player_delta = ctx.player.pos - self.pos;
+
+        // move towards player
+        forces.x = player_delta.x;
+        forces = forces.clamp_length_max(1.0) * self.speed;
+        forces.x -= self.velocity.x
+            * if self.on_ground {
+                GROUND_FRICTION
+            } else {
+                AIR_DRAG
+            };
+
+        // handle special pathfinding
+        let tile = (self.pos / 8.0).round();
+        let tile = map.get_special_tile(tile.x as _, tile.y as _);
+
+        let should_jump = tile != 0
+            && match tile - 1 {
+                0 => true,
+                1 => player_delta.x < 0.0,
+                2 => player_delta.x > 0.0,
+
+                _ => false,
+            };
+        if should_jump && self.on_ground {
+            forces.y -= 8.5;
+        }
+
+        let result =
+            update_physics_entity(&mut self.pos, &mut forces, &mut self.velocity, true, map);
+        self.on_ground = result.0;
     }
 }
 
