@@ -27,6 +27,15 @@ async fn main() {
 
     let mut screens = screens::ScreensRegistry::new();
     let mut last = time::get_time();
+
+    screens
+        .get_mut(ScreenID::Test)
+        .on_load(ScreenUpdateContext {
+            player: &mut player,
+            assets: &assets,
+            render_layers: &cameras,
+        });
+    set_default_camera();
     loop {
         clear_background(BLACK);
         let (actual_screen_width, actual_screen_height) = screen_size();
@@ -46,13 +55,15 @@ async fn main() {
             last = now;
             screen.update(ScreenUpdateContext {
                 player: &mut player,
+                assets: &assets,
+                render_layers: &cameras,
             });
         }
 
-        screen.draw(ScreenDrawContext {
+        screen.draw(ScreenUpdateContext {
+            player: &mut player,
             assets: &assets,
             render_layers: &cameras,
-            player: &player,
         });
 
         set_default_camera();

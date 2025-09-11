@@ -35,13 +35,10 @@ impl CameraBundle {
     }
 }
 
-pub struct ScreenDrawContext<'a> {
-    pub assets: &'a Assets,
-    pub render_layers: &'a CameraBundle,
-    pub player: &'a Player,
-}
 pub struct ScreenUpdateContext<'a> {
     pub player: &'a mut Player,
+    pub assets: &'a Assets,
+    pub render_layers: &'a CameraBundle,
 }
 pub enum ScreenUpdateResult {
     /// Does nothing special
@@ -50,12 +47,17 @@ pub enum ScreenUpdateResult {
 
 #[expect(unused_variables)]
 pub trait Screen {
+    fn on_load(&mut self, ctx: ScreenUpdateContext) {}
     fn update(&mut self, ctx: ScreenUpdateContext) -> ScreenUpdateResult {
         ScreenUpdateResult::Pass
     }
-    fn draw(&mut self, ctx: ScreenDrawContext) {}
+    fn draw(&mut self, ctx: ScreenUpdateContext) {}
 }
 
+#[derive(Clone, Debug, Copy, PartialEq, Eq, Hash, enum_iterator::Sequence)]
+pub enum ScreenID {
+    Test,
+}
 pub struct ScreensRegistry {
     screens: Vec<Box<dyn Screen>>,
 }
@@ -103,7 +105,7 @@ impl Map {
         }
         self.collision[x + y * 48]
     }
-    fn draw(&self, ctx: &ScreenDrawContext) {
+    fn draw(&self, ctx: &ScreenUpdateContext) {
         set_camera(&ctx.render_layers.world);
         for (_, layer) in self.iter() {
             if let Some(layer) = layer.downcast_ref::<Tiles>() {
@@ -154,33 +156,25 @@ fn parse_tilemap_layer(xml: &str, layer_name: &str) -> Tiles {
     }
     data
 }
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, enum_iterator::Sequence)]
-pub enum ScreenID {
-    Test,
-}
 struct TilemapScreen {
-    first_frame: bool,
     map: Map,
 }
 impl TilemapScreen {
     fn new(file: &str) -> Self {
         Self {
             map: Map::from_file(file),
-            first_frame: true,
         }
     }
 }
 impl Screen for TilemapScreen {
+    fn on_load(&mut self, ctx: ScreenUpdateContext) {
+        self.map.draw(&ctx);
+    }
     fn update(&mut self, ctx: ScreenUpdateContext) -> ScreenUpdateResult {
         ctx.player.update(&self.map);
         ScreenUpdateResult::Pass
     }
-    fn draw(&mut self, ctx: ScreenDrawContext) {
-        self.map.draw(&ctx);
-        if self.first_frame {
-            self.first_frame = false;
-        }
+    fn draw(&mut self, ctx: ScreenUpdateContext) {
         ctx.player.draw(&ctx);
     }
 }

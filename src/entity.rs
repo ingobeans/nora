@@ -1,7 +1,7 @@
 use macroquad::prelude::*;
 
 use crate::{
-    screens::{Map, ScreenDrawContext},
+    screens::{Map, ScreenUpdateContext},
     utils::*,
 };
 
@@ -12,7 +12,7 @@ fn ceil_g(a: f32) -> f32 {
 #[expect(unused_variables)]
 pub trait Entity {
     fn update(&mut self, ctx: &Map) {}
-    fn draw(&self, ctx: &ScreenDrawContext) {}
+    fn draw(&self, ctx: &ScreenUpdateContext) {}
 }
 pub fn update_physics_entity(
     pos: &mut Vec2,

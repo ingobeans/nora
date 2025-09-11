@@ -3,7 +3,7 @@ use macroquad::prelude::*;
 use crate::{
     assets::*,
     entity::{Entity, update_physics_entity},
-    screens::{Map, ScreenDrawContext},
+    screens::{Map, ScreenUpdateContext},
     utils::*,
 };
 
@@ -142,7 +142,7 @@ impl Entity for Player {
                 max_delta * if delta < 0.0 { -1.0 } else { 1.0 } + self.pos.y.floor();
         }
     }
-    fn draw(&self, ctx: &ScreenDrawContext) {
+    fn draw(&self, ctx: &ScreenUpdateContext) {
         let animation = if !self.standing {
             &self.slide_animation
         } else if self.velocity.length() != 0.0 {
