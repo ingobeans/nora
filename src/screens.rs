@@ -1,7 +1,12 @@
 use macroquad::prelude::*;
 use struct_iterable::Iterable;
 
-use crate::{assets::Assets, entity::Entity, player::Player, utils::*};
+use crate::{
+    assets::{Animation, Assets},
+    entity::{Entity, HumanoidEnemy},
+    player::Player,
+    utils::*,
+};
 
 pub struct CameraBundle {
     /// World layers are not cleared every frame, as they are intended to be static.
@@ -62,10 +67,10 @@ pub struct ScreensRegistry {
     screens: Vec<Box<dyn Screen>>,
 }
 impl ScreensRegistry {
-    pub fn new() -> Self {
+    pub fn new(assets: &Assets) -> Self {
         let mut screens = Vec::new();
         for id in enum_iterator::all::<ScreenID>() {
-            screens.push(Self::load_screen_from_id(id));
+            screens.push(Self::load_screen_from_id(id, assets));
         }
 
         Self { screens }
@@ -76,11 +81,15 @@ impl ScreensRegistry {
     pub fn get_mut(&mut self, id: ScreenID) -> &mut Box<dyn Screen> {
         &mut self.screens[id as usize]
     }
-    fn load_screen_from_id(id: ScreenID) -> Box<dyn Screen> {
+    fn load_screen_from_id(id: ScreenID, assets: &Assets) -> Box<dyn Screen> {
         match id {
-            ScreenID::Test => Box::new(TilemapScreen::new(include_str!(
-                "../assets/screens/test.tmx"
-            ))),
+            ScreenID::Test => Box::new(TilemapScreen::new(
+                include_str!("../assets/screens/test.tmx"),
+                vec![Box::new(HumanoidEnemy::new(
+                    Vec2::new(25.0, 17.0) * 8.0,
+                    Animation::from_file(include_bytes!("../assets/entities/enemy.ase")),
+                ))],
+            )),
         }
     }
 }
@@ -158,11 +167,13 @@ fn parse_tilemap_layer(xml: &str, layer_name: &str) -> Tiles {
 }
 struct TilemapScreen {
     map: Map,
+    entities: Vec<Box<dyn Entity>>,
 }
 impl TilemapScreen {
-    fn new(file: &str) -> Self {
+    fn new(file: &str, entities: Vec<Box<dyn Entity>>) -> Self {
         Self {
             map: Map::from_file(file),
+            entities,
         }
     }
 }
@@ -171,10 +182,16 @@ impl Screen for TilemapScreen {
         self.map.draw(&ctx);
     }
     fn update(&mut self, ctx: ScreenUpdateContext) -> ScreenUpdateResult {
+        for entity in self.entities.iter_mut() {
+            entity.update(&self.map);
+        }
         ctx.player.update(&self.map);
         ScreenUpdateResult::Pass
     }
     fn draw(&mut self, ctx: ScreenUpdateContext) {
+        for entity in self.entities.iter() {
+            entity.draw(&ctx);
+        }
         ctx.player.draw(&ctx);
     }
 }

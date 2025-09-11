@@ -1,6 +1,7 @@
 use macroquad::prelude::*;
 
 use crate::{
+    assets::Animation,
     screens::{Map, ScreenUpdateContext},
     utils::*,
 };
@@ -11,9 +12,42 @@ fn ceil_g(a: f32) -> f32 {
 
 #[expect(unused_variables)]
 pub trait Entity {
-    fn update(&mut self, ctx: &Map) {}
+    fn update(&mut self, map: &Map) {}
     fn draw(&self, ctx: &ScreenUpdateContext) {}
 }
+pub struct HumanoidEnemy {
+    pub pos: Vec2,
+    pub velocity: Vec2,
+    pub anim_frame: u32,
+    pub animation: Animation,
+}
+impl HumanoidEnemy {
+    pub fn new(pos: Vec2, animation: Animation) -> Self {
+        Self {
+            pos,
+            velocity: Vec2::ZERO,
+            anim_frame: 0,
+            animation,
+        }
+    }
+}
+impl Entity for HumanoidEnemy {
+    fn draw(&self, ctx: &ScreenUpdateContext) {
+        set_camera(&ctx.render_layers.entities);
+        draw_texture(
+            self.animation.get_at_time(self.anim_frame),
+            self.pos.floor().x - 4.0,
+            self.pos.floor().y - 8.0,
+            WHITE,
+        );
+    }
+    fn update(&mut self, map: &Map) {
+        self.anim_frame += 1000 / 60;
+        let mut forces = Vec2::ZERO;
+        update_physics_entity(&mut self.pos, &mut forces, &mut self.velocity, true, map);
+    }
+}
+
 pub fn update_physics_entity(
     pos: &mut Vec2,
     forces: &mut Vec2,
