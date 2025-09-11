@@ -1,7 +1,7 @@
 use macroquad::prelude::*;
 use struct_iterable::Iterable;
 
-use crate::{assets::Assets, player::Player, utils::*};
+use crate::{assets::Assets, entity::Entity, player::Player, utils::*};
 
 pub struct CameraBundle {
     /// World layers are not cleared every frame, as they are intended to be static.

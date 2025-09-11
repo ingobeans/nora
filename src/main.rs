@@ -3,6 +3,7 @@ use macroquad::{miniquad::window::screen_size, prelude::*, time};
 use crate::{assets::Assets, player::Player, screens::*, utils::*};
 
 mod assets;
+mod entity;
 mod player;
 mod screens;
 mod utils;

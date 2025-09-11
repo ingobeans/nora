@@ -2,13 +2,10 @@ use macroquad::prelude::*;
 
 use crate::{
     assets::*,
+    entity::{Entity, update_physics_entity},
     screens::{Map, ScreenDrawContext},
     utils::*,
 };
-
-fn ceil_g(a: f32) -> f32 {
-    if a < 0.0 { a.floor() } else { a.ceil() }
-}
 
 pub struct Player {
     pub pos: Vec2,
@@ -50,16 +47,13 @@ impl Player {
     fn can_slide(&self) -> bool {
         true
     }
-    pub fn update(&mut self, map: &Map) {
+}
+impl Entity for Player {
+    fn update(&mut self, map: &Map) {
         self.anim_frame += 1000 / 60;
-
-        let noclip = false;
 
         let mut forces = Vec2::ZERO;
 
-        if !noclip {
-            forces.y += GRAVITY
-        }
         let mut speed = PLAYER_SPEED;
         let can_slide = self.can_slide();
         let shift_pressed = is_key_down(KeyCode::LeftShift);
@@ -108,21 +102,6 @@ impl Player {
             self.jump_frames += 1;
         }
 
-        if noclip {
-            if is_key_down(KeyCode::W) {
-                forces.y -= 1.0;
-            }
-            if is_key_down(KeyCode::S) {
-                forces.y += 1.0;
-            }
-            self.velocity += forces * 2.0;
-            self.velocity = self.velocity.lerp(Vec2::ZERO, GROUND_FRICTION);
-
-            self.pos += self.velocity;
-            self.camera_pos = self.pos.floor();
-            return;
-        }
-
         forces.x -= self.velocity.x
             * if !self.standing {
                 0.02
@@ -131,89 +110,16 @@ impl Player {
             } else {
                 AIR_DRAG
             };
-
-        self.velocity += forces;
-
-        let mut new = self.pos + self.velocity;
-
-        let tile_x = self.pos.x / 8.0;
-        let tile_y = self.pos.y / 8.0;
-
-        let mut tiles_y = vec![
-            (tile_x.trunc(), ceil_g(new.y / 8.0)),
-            (ceil_g(tile_x), ceil_g(new.y / 8.0)),
-            (tile_x.trunc(), (new.y / 8.0).trunc()),
-            (ceil_g(tile_x), (new.y / 8.0).trunc()),
-        ];
-        if self.standing {
-            tiles_y.push((tile_x.trunc(), (new.y / 8.0).trunc() - 1.0));
-            tiles_y.push((ceil_g(tile_x), (new.y / 8.0).trunc() - 1.0));
-        }
-
-        let was_on_ground = self.on_ground;
         let old_velocity = self.velocity;
-        self.on_ground = false;
-        for (tx, ty) in tiles_y {
-            let tile = map.get_collision_tile(tx as _, ty as _);
-            if tile != 0 {
-                let c = if self.velocity.y < 0.0 {
-                    tile_y.floor() * 8.0
-                } else {
-                    self.on_ground = true;
-                    tile_y.ceil() * 8.0
-                };
-                new.y = c;
-                self.velocity.y = 0.0;
-                break;
-            }
-        }
-        let mut tiles_x = vec![
-            ((new.x / 8.0).trunc(), ceil_g(new.y / 8.0)),
-            (ceil_g(new.x / 8.0), ceil_g(new.y / 8.0)),
-            (ceil_g(new.x / 8.0), (new.y / 8.0).trunc()),
-            ((new.x / 8.0).trunc(), (new.y / 8.0).trunc()),
-        ];
-        if self.standing {
-            tiles_x.push(((new.x / 8.0).trunc(), (new.y / 8.0).trunc() - 1.0));
-            tiles_x.push((ceil_g(new.x / 8.0), (new.y / 8.0).trunc() - 1.0));
-        }
-
-        for (tx, ty) in tiles_x {
-            let tile = map.get_collision_tile(tx as _, ty as _);
-            if tile != 0 {
-                let c = if self.velocity.x < 0.0 {
-                    tile_x.floor() * 8.0
-                } else {
-                    tile_x.ceil() * 8.0
-                };
-                new.x = c;
-                self.velocity.x = 0.0;
-                break;
-            }
-        }
-
-        // check if head covered
-        let m = if self.standing { 2.0 } else { 1.0 };
-        let tiles_head = [
-            ((new.x / 8.0).trunc(), ceil_g(new.y / 8.0) - m),
-            (ceil_g(new.x / 8.0), ceil_g(new.y / 8.0) - m),
-        ];
-        self.head_covered = false;
-        for (tx, ty) in tiles_head {
-            let tile = map.get_collision_tile(tx as _, ty as _);
-            if tile != 0 {
-                self.head_covered = true;
-            }
-        }
-
-        if self.velocity.x.abs() <= 0.3 {
-            self.velocity.x = 0.0;
-        }
-        if self.standing {
-            self.velocity.x = self.velocity.x.clamp(-MAX_RUN_VELOCITY, MAX_RUN_VELOCITY);
-        }
-        if !was_on_ground
-            && self.on_ground
+        let (on_ground, head_covered) = update_physics_entity(
+            &mut self.pos,
+            &mut forces,
+            &mut self.velocity,
+            self.standing,
+            map,
+        );
+        if !self.on_ground
+            && on_ground
             && !self.standing
             && self.velocity.x.abs() > 1.0
             && old_velocity.y > 0.0
@@ -222,8 +128,11 @@ impl Player {
 
             self.velocity.x += (1.0 / (old_velocity.y) + 2.0) * m;
         }
-
-        self.pos = new;
+        if self.standing {
+            self.velocity.x = self.velocity.x.clamp(-MAX_RUN_VELOCITY, MAX_RUN_VELOCITY);
+        }
+        self.on_ground = on_ground;
+        self.head_covered = head_covered;
 
         self.camera_pos.x = self.pos.x.floor();
         let delta = self.camera_pos.y - self.pos.y.floor();
@@ -233,7 +142,7 @@ impl Player {
                 max_delta * if delta < 0.0 { -1.0 } else { 1.0 } + self.pos.y.floor();
         }
     }
-    pub fn draw(&self, ctx: &ScreenDrawContext) {
+    fn draw(&self, ctx: &ScreenDrawContext) {
         let animation = if !self.standing {
             &self.slide_animation
         } else if self.velocity.length() != 0.0 {
