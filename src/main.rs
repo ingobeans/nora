@@ -29,14 +29,11 @@ async fn main() {
     let mut screens = create_screen_registry();
     let mut last = time::get_time();
 
-    screens
-        .get_mut(ScreenID::Test)
-        .on_load(ScreenUpdateContext {
-            player: &mut player,
-            assets: &assets,
-            render_layers: &mut render_layers,
-        });
     set_default_camera();
+
+    let mut current_screen = screens::ScreenID::Test;
+    let mut first = true;
+
     loop {
         clear_background(BLACK);
         let (actual_screen_width, actual_screen_height) = screen_size();
@@ -46,15 +43,31 @@ async fn main() {
         let _mouse_x = mouse_x / scale_factor;
         let _mouse_y = mouse_y / scale_factor;
 
-        let screen = screens.get_mut(screens::ScreenID::Test);
-        let now = time::get_time();
-        if now - last >= 1.0 / 60.0 {
-            last = now;
-            screen.update(ScreenUpdateContext {
+        let screen = screens.get_mut(current_screen);
+
+        if first {
+            first = false;
+            screen.on_load(ScreenUpdateContext {
                 player: &mut player,
                 assets: &assets,
                 render_layers: &mut render_layers,
             });
+        }
+
+        let now = time::get_time();
+        if now - last >= 1.0 / 60.0 {
+            last = now;
+            match screen.update(ScreenUpdateContext {
+                player: &mut player,
+                assets: &assets,
+                render_layers: &mut render_layers,
+            }) {
+                ScreenUpdateResult::Pass => {}
+                ScreenUpdateResult::ChangeScreen(screen) => {
+                    current_screen = screen;
+                    first = true;
+                }
+            }
         }
 
         screen.draw(ScreenUpdateContext {

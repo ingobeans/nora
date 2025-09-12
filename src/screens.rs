@@ -18,6 +18,8 @@ pub struct ScreenUpdateContext<'a> {
 pub enum ScreenUpdateResult {
     /// Does nothing special
     Pass,
+    /// Requests change to a different screen
+    ChangeScreen(ScreenID),
 }
 
 #[expect(unused_variables)]
@@ -48,6 +50,7 @@ pub fn create_screen_registry() -> Registry<ScreenID, Box<dyn Screen>> {
                 AnimationID::PlayerSprint,
                 0.4,
             ))],
+            vec![ScreenID::Test],
         )),
     });
     Registry::new(f)
@@ -67,10 +70,10 @@ pub struct Map {
 impl Map {
     pub fn get_collision_tile(&self, x: usize, y: usize) -> usize {
         if x >= 48 {
-            return 0;
+            return 1;
         }
         if y >= 27 {
-            return 0;
+            return 1;
         }
         self.collision[x + y * 48]
     }
@@ -82,6 +85,14 @@ impl Map {
             return 0;
         }
         self.special[x + y * 48]
+    }
+    pub fn find_special_tile(&self, tile_index: usize) -> Option<(usize, usize)> {
+        for (i, tile) in self.special.iter().enumerate() {
+            if *tile == tile_index + 1 {
+                return Some((i % 48, i / 48));
+            }
+        }
+        None
     }
     fn layers(&self) -> [&Tiles; 5] {
         [
@@ -143,24 +154,49 @@ fn parse_tilemap_layer(xml: &str, layer_name: &str) -> Tiles {
 struct TilemapScreen {
     map: Map,
     entities: Vec<Box<dyn NonPlayerEntity>>,
+    linked_screens: Vec<ScreenID>,
 }
 impl TilemapScreen {
-    fn new(file: &str, entities: Vec<Box<dyn NonPlayerEntity>>) -> Self {
+    fn new(
+        file: &str,
+        entities: Vec<Box<dyn NonPlayerEntity>>,
+        linked_screens: Vec<ScreenID>,
+    ) -> Self {
         Self {
             map: Map::from_file(file),
             entities,
+            linked_screens,
         }
     }
 }
 impl Screen for TilemapScreen {
     fn on_load(&mut self, mut ctx: ScreenUpdateContext) {
         self.map.draw(&mut ctx);
+        if let Some((x, y)) = self.map.find_special_tile(7) {
+            ctx.player.pos = Vec2::new(x as f32 * 8.0, y as f32 * 8.0);
+        }
     }
     fn update(&mut self, mut ctx: ScreenUpdateContext) -> ScreenUpdateResult {
         for entity in self.entities.iter_mut() {
             entity.update(&self.map, &mut ctx);
         }
         ctx.player.update(&self.map);
+
+        // handle special tiles
+
+        let tile_pos = (ctx.player.pos / 8.0).round();
+        let tile = self.map.get_special_tile(tile_pos.x as _, tile_pos.y as _);
+        if tile >= 4 && tile <= 7 {
+            let l = self.linked_screens.len();
+            if l <= tile - 4 {
+                panic!(
+                    "Attempt to load linked screen #{}, but there's only {} linked screens!",
+                    tile - 4,
+                    l
+                );
+            }
+            return ScreenUpdateResult::ChangeScreen(self.linked_screens[tile - 4]);
+        }
         ScreenUpdateResult::Pass
     }
     fn draw(&mut self, mut ctx: ScreenUpdateContext) {

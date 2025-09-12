@@ -145,7 +145,11 @@ pub fn update_physics_entity(
     }
 
     for (tx, ty) in tiles_x {
-        let tile = map.get_collision_tile(tx as _, ty as _);
+        let tile = if tx >= 0.0 {
+            map.get_collision_tile(tx as _, ty as _)
+        } else {
+            1
+        };
         if tile != 0 {
             let c = if velocity.x < 0.0 {
                 tile_x.floor() * 8.0
