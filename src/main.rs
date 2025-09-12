@@ -32,7 +32,7 @@ async fn main() {
     set_default_camera();
 
     let mut current_screen = screens::ScreenID::Test;
-    let mut first = true;
+    let mut spawn: Option<usize> = Some(0);
 
     loop {
         clear_background(BLACK);
@@ -45,13 +45,16 @@ async fn main() {
 
         let screen = screens.get_mut(current_screen);
 
-        if first {
-            first = false;
-            screen.on_load(ScreenUpdateContext {
-                player: &mut player,
-                assets: &assets,
-                render_layers: &mut render_layers,
-            });
+        if let Some(i) = spawn {
+            spawn = None;
+            screen.on_load(
+                ScreenUpdateContext {
+                    player: &mut player,
+                    assets: &assets,
+                    render_layers: &mut render_layers,
+                },
+                i,
+            );
         }
 
         let now = time::get_time();
@@ -63,9 +66,9 @@ async fn main() {
                 render_layers: &mut render_layers,
             }) {
                 ScreenUpdateResult::Pass => {}
-                ScreenUpdateResult::ChangeScreen(screen) => {
+                ScreenUpdateResult::ChangeScreen(screen, i) => {
                     current_screen = screen;
-                    first = true;
+                    spawn = Some(i);
                 }
             }
         }

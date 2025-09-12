@@ -19,12 +19,12 @@ pub enum ScreenUpdateResult {
     /// Does nothing special
     Pass,
     /// Requests change to a different screen
-    ChangeScreen(ScreenID),
+    ChangeScreen(ScreenID, usize),
 }
 
 #[expect(unused_variables)]
 pub trait Screen {
-    fn on_load(&mut self, ctx: ScreenUpdateContext) {}
+    fn on_load(&mut self, ctx: ScreenUpdateContext, spawn_index: usize) {}
     fn update(&mut self, ctx: ScreenUpdateContext) -> ScreenUpdateResult {
         ScreenUpdateResult::Pass
     }
@@ -50,7 +50,7 @@ pub fn create_screen_registry() -> Registry<ScreenID, Box<dyn Screen>> {
                 AnimationID::PlayerSprint,
                 0.4,
             ))],
-            vec![ScreenID::Test],
+            vec![(ScreenID::Test, 1), (ScreenID::Test, 0)],
         )),
     });
     Registry::new(f)
@@ -154,13 +154,13 @@ fn parse_tilemap_layer(xml: &str, layer_name: &str) -> Tiles {
 struct TilemapScreen {
     map: Map,
     entities: Vec<Box<dyn NonPlayerEntity>>,
-    linked_screens: Vec<ScreenID>,
+    linked_screens: Vec<(ScreenID, usize)>,
 }
 impl TilemapScreen {
     fn new(
         file: &str,
         entities: Vec<Box<dyn NonPlayerEntity>>,
-        linked_screens: Vec<ScreenID>,
+        linked_screens: Vec<(ScreenID, usize)>,
     ) -> Self {
         Self {
             map: Map::from_file(file),
@@ -170,9 +170,9 @@ impl TilemapScreen {
     }
 }
 impl Screen for TilemapScreen {
-    fn on_load(&mut self, mut ctx: ScreenUpdateContext) {
+    fn on_load(&mut self, mut ctx: ScreenUpdateContext, spawn_index: usize) {
         self.map.draw(&mut ctx);
-        if let Some((x, y)) = self.map.find_special_tile(7) {
+        if let Some((x, y)) = self.map.find_special_tile(7 + spawn_index) {
             ctx.player.pos = Vec2::new(x as f32 * 8.0, y as f32 * 8.0);
         }
     }
@@ -195,7 +195,8 @@ impl Screen for TilemapScreen {
                     l
                 );
             }
-            return ScreenUpdateResult::ChangeScreen(self.linked_screens[tile - 4]);
+            let target = self.linked_screens[tile - 4];
+            return ScreenUpdateResult::ChangeScreen(target.0, target.1);
         }
         ScreenUpdateResult::Pass
     }
