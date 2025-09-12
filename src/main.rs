@@ -31,7 +31,7 @@ async fn main() {
 
     set_default_camera();
 
-    let mut current_screen = screens::ScreenID::Test;
+    let mut current_screen = screens::ScreenID::Street;
     let mut spawn: Option<usize> = Some(0);
 
     loop {
@@ -61,7 +61,6 @@ async fn main() {
             last = now;
             match screen.update(ScreenUpdateContext {
                 player: &mut player,
-                assets: &assets,
                 render_layers: &mut render_layers,
             }) {
                 ScreenUpdateResult::Pass => {}
@@ -74,7 +73,6 @@ async fn main() {
 
         screen.draw(ScreenUpdateContext {
             player: &mut player,
-            assets: &assets,
             render_layers: &mut render_layers,
         });
 

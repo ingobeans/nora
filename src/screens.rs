@@ -33,6 +33,7 @@ pub trait Screen {
 #[derive(Clone, Debug, Copy, PartialEq, Eq, Hash, Sequence)]
 pub enum ScreenID {
     Test,
+    Street,
 }
 impl Into<usize> for ScreenID {
     fn into(self) -> usize {
@@ -49,6 +50,11 @@ pub fn create_screen_registry() -> Registry<ScreenID, Box<dyn Screen>> {
                 AnimationID::PlayerSprint,
                 0.4,
             ))],
+            vec![(ScreenID::Test, 1), (ScreenID::Street, 0)],
+        )),
+        ScreenID::Street => Box::new(TilemapScreen::new(
+            include_str!("../assets/screens/street.tmx"),
+            vec![],
             vec![(ScreenID::Test, 1), (ScreenID::Test, 0)],
         )),
     });
