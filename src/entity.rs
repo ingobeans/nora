@@ -1,7 +1,7 @@
 use macroquad::prelude::*;
 
 use crate::{
-    assets::{Animation, AnimationID},
+    assets::AnimationID,
     graphics::DrawCall,
     screens::{Map, ScreenUpdateContext},
     utils::*,

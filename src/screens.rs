@@ -3,7 +3,7 @@ use macroquad::prelude::*;
 use struct_iterable::Iterable;
 
 use crate::{
-    assets::{Animation, AnimationID, Assets},
+    assets::AnimationID,
     entity::{HumanoidEnemy, NonPlayerEntity},
     graphics::{DrawCall, RenderLayers},
     player::Player,
@@ -35,9 +35,9 @@ pub enum ScreenID {
     Test,
     Street,
 }
-impl Into<usize> for ScreenID {
-    fn into(self) -> usize {
-        self as usize
+impl From<ScreenID> for usize {
+    fn from(val: ScreenID) -> Self {
+        val as usize
     }
 }
 
@@ -127,12 +127,12 @@ impl Map {
     }
     fn from_file(data: &str) -> Self {
         Self {
-            background: parse_tilemap_layer(&data, "Background"),
-            walls: parse_tilemap_layer(&data, "Walls"),
-            collision: parse_tilemap_layer(&data, "Collision"),
-            detail: parse_tilemap_layer(&data, "Detail"),
-            detail2: parse_tilemap_layer(&data, "Detail2"),
-            special: parse_tilemap_layer(&data, "Special"),
+            background: parse_tilemap_layer(data, "Background"),
+            walls: parse_tilemap_layer(data, "Walls"),
+            collision: parse_tilemap_layer(data, "Collision"),
+            detail: parse_tilemap_layer(data, "Detail"),
+            detail2: parse_tilemap_layer(data, "Detail2"),
+            special: parse_tilemap_layer(data, "Special"),
         }
     }
 }
@@ -148,9 +148,9 @@ fn parse_tilemap_layer(xml: &str, layer_name: &str) -> Tiles {
         .split_once("</data>")
         .unwrap()
         .0;
-    let mut split = xml.split(',');
+    let split = xml.split(',');
     let mut data: Tiles = Vec::new();
-    while let Some(tile) = split.next() {
+    for tile in split {
         let tile = tile.trim().parse::<usize>().unwrap();
         data.push(tile);
     }
@@ -191,7 +191,7 @@ impl Screen for TilemapScreen {
 
         let tile_pos = (ctx.player.pos / 8.0).round();
         let tile = self.map.get_special_tile(tile_pos.x as _, tile_pos.y as _);
-        if tile >= 4 && tile <= 7 {
+        if (4..=7).contains(&tile) {
             let l = self.linked_screens.len();
             if l <= tile - 4 {
                 panic!(

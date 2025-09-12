@@ -12,9 +12,9 @@ pub enum AnimationID {
     PlayerSlide,
     TestBox,
 }
-impl Into<usize> for AnimationID {
-    fn into(self) -> usize {
-        self as usize
+impl From<AnimationID> for usize {
+    fn from(val: AnimationID) -> Self {
+        val as usize
     }
 }
 

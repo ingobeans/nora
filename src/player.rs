@@ -4,7 +4,7 @@ use crate::{
     assets::*,
     entity::update_physics_entity,
     graphics::{DrawCall, RenderLayer},
-    screens::{Map, ScreenUpdateContext},
+    screens::Map,
     utils::*,
 };
 
