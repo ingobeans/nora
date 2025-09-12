@@ -25,7 +25,7 @@ async fn main() {
 
     let mut player = Player::new();
 
-    let mut screens = screens::ScreensRegistry::new(&assets);
+    let mut screens = create_screen_registry(&assets);
     let mut last = time::get_time();
 
     screens

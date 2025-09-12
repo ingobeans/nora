@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use macroquad::prelude::*;
 use struct_iterable::Iterable;
 
@@ -63,26 +65,38 @@ pub trait Screen {
 pub enum ScreenID {
     Test,
 }
-pub struct ScreensRegistry {
-    screens: Vec<Box<dyn Screen>>,
+impl Into<usize> for ScreenID {
+    fn into(self) -> usize {
+        self as usize
+    }
 }
-impl ScreensRegistry {
-    pub fn new(assets: &Assets) -> Self {
+pub struct Registry<A, T> {
+    values: Vec<T>,
+    id_type: PhantomData<A>,
+}
+impl<A: enum_iterator::Sequence + Into<usize>, T> Registry<A, T> {
+    pub fn new(assets: &Assets, create_function: Box<dyn Fn(A, &Assets) -> T>) -> Self {
         let mut screens = Vec::new();
-        for id in enum_iterator::all::<ScreenID>() {
-            screens.push(Self::load_screen_from_id(id, assets));
+        for id in enum_iterator::all::<A>() {
+            screens.push(create_function(id, assets));
         }
 
-        Self { screens }
+        Self {
+            values: screens,
+            id_type: PhantomData,
+        }
     }
-    pub fn get(&self, id: ScreenID) -> &Box<dyn Screen> {
-        &self.screens[id as usize]
+    pub fn get(&self, id: A) -> &T {
+        &self.values[id.into()]
     }
-    pub fn get_mut(&mut self, id: ScreenID) -> &mut Box<dyn Screen> {
-        &mut self.screens[id as usize]
+    pub fn get_mut(&mut self, id: A) -> &mut T {
+        &mut self.values[id.into()]
     }
-    fn load_screen_from_id(id: ScreenID, assets: &Assets) -> Box<dyn Screen> {
-        match id {
+}
+
+pub fn create_screen_registry(assets: &Assets) -> Registry<ScreenID, Box<dyn Screen>> {
+    let f = Box::new(|id: ScreenID, _: &Assets| {
+        let b: Box<dyn Screen> = match id {
             ScreenID::Test => Box::new(TilemapScreen::new(
                 include_str!("../assets/screens/test.tmx"),
                 vec![Box::new(HumanoidEnemy::new(
@@ -91,8 +105,10 @@ impl ScreensRegistry {
                     0.4,
                 ))],
             )),
-        }
-    }
+        };
+        b
+    });
+    Registry::new(assets, f)
 }
 
 type Tiles = Vec<usize>;
