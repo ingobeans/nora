@@ -50,7 +50,7 @@ pub fn create_screen_registry() -> Registry<ScreenID, Box<dyn Screen>> {
                 AnimationID::PlayerSprint,
                 0.4,
             ))],
-            vec![(ScreenID::Test, 1), (ScreenID::Street, 0)],
+            vec![(ScreenID::Street, 1), (ScreenID::Street, 0)],
         )),
         ScreenID::Street => Box::new(TilemapScreen::new(
             include_str!("../assets/screens/street.tmx"),
