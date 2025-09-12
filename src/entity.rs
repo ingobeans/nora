@@ -1,7 +1,8 @@
 use macroquad::prelude::*;
 
 use crate::{
-    assets::Animation,
+    assets::{Animation, AnimationID},
+    graphics::DrawCall,
     screens::{Map, ScreenUpdateContext},
     utils::*,
 };
@@ -13,18 +14,18 @@ fn ceil_g(a: f32) -> f32 {
 #[expect(unused_variables)]
 pub trait NonPlayerEntity {
     fn update(&mut self, map: &Map, ctx: &mut ScreenUpdateContext) {}
-    fn draw(&self, ctx: &ScreenUpdateContext) {}
+    fn draw(&self, ctx: &mut ScreenUpdateContext) {}
 }
 pub struct HumanoidEnemy {
     pub pos: Vec2,
     pub velocity: Vec2,
     pub anim_frame: u32,
-    pub animation: Animation,
+    pub animation: AnimationID,
     pub on_ground: bool,
     pub speed: f32,
 }
 impl HumanoidEnemy {
-    pub fn new(pos: Vec2, animation: Animation, speed: f32) -> Self {
+    pub fn new(pos: Vec2, animation: AnimationID, speed: f32) -> Self {
         Self {
             pos,
             velocity: Vec2::ZERO,
@@ -36,14 +37,17 @@ impl HumanoidEnemy {
     }
 }
 impl NonPlayerEntity for HumanoidEnemy {
-    fn draw(&self, ctx: &ScreenUpdateContext) {
-        set_camera(&ctx.render_layers.entities);
-        draw_texture(
-            self.animation.get_at_time(self.anim_frame),
+    fn draw(&self, ctx: &mut ScreenUpdateContext) {
+        ctx.render_layers.entities.calls.push(DrawCall::Animation(
+            self.animation,
+            self.anim_frame,
             self.pos.floor().x - 4.0,
             self.pos.floor().y - 8.0,
-            WHITE,
-        );
+            Some(DrawTextureParams {
+                flip_x: self.velocity.x < 0.0,
+                ..Default::default()
+            }),
+        ));
     }
     fn update(&mut self, map: &Map, ctx: &mut ScreenUpdateContext) {
         self.anim_frame += 1000 / 60;

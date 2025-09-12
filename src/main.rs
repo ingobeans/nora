@@ -1,9 +1,10 @@
 use macroquad::{miniquad::window::screen_size, prelude::*, time};
 
-use crate::{assets::Assets, player::Player, screens::*, utils::*};
+use crate::{assets::Assets, graphics::RenderLayers, player::Player, screens::*, utils::*};
 
 mod assets;
 mod entity;
+mod graphics;
 mod player;
 mod screens;
 mod utils;
@@ -21,11 +22,11 @@ async fn main() {
     println!("nora v{}", env!("CARGO_PKG_VERSION"));
     let assets = Assets::load();
 
-    let cameras = CameraBundle::new();
+    let mut render_layers = RenderLayers::new();
 
     let mut player = Player::new();
 
-    let mut screens = create_screen_registry(&assets);
+    let mut screens = create_screen_registry();
     let mut last = time::get_time();
 
     screens
@@ -33,7 +34,7 @@ async fn main() {
         .on_load(ScreenUpdateContext {
             player: &mut player,
             assets: &assets,
-            render_layers: &cameras,
+            render_layers: &mut render_layers,
         });
     set_default_camera();
     loop {
@@ -46,31 +47,31 @@ async fn main() {
         let _mouse_y = mouse_y / scale_factor;
 
         let screen = screens.get_mut(screens::ScreenID::Test);
-        for camera in cameras.get_redrawn().iter() {
-            set_camera(*camera);
-            clear_background(BLACK.with_alpha(0.0));
-        }
         let now = time::get_time();
         if now - last >= 1.0 / 60.0 {
             last = now;
             screen.update(ScreenUpdateContext {
                 player: &mut player,
                 assets: &assets,
-                render_layers: &cameras,
+                render_layers: &mut render_layers,
             });
         }
 
         screen.draw(ScreenUpdateContext {
             player: &mut player,
             assets: &assets,
-            render_layers: &cameras,
+            render_layers: &mut render_layers,
         });
 
-        set_default_camera();
         // draw cameras
-        for camera in cameras.get_all().iter() {
+        for layer in render_layers.get_all().into_iter() {
+            if !layer.calls.is_empty() {
+                set_camera(&layer.camera);
+                layer.draw(&assets);
+            }
+            set_default_camera();
             draw_texture_ex(
-                &camera.render_target.as_ref().unwrap().texture,
+                &layer.camera.render_target.as_ref().unwrap().texture,
                 0.0,
                 0.0,
                 WHITE,

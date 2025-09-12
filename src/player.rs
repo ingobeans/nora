@@ -3,6 +3,7 @@ use macroquad::prelude::*;
 use crate::{
     assets::*,
     entity::update_physics_entity,
+    graphics::{DrawCall, RenderLayer},
     screens::{Map, ScreenUpdateContext},
     utils::*,
 };
@@ -19,9 +20,6 @@ pub struct Player {
     pub standing: bool,
     pub health: f32,
     pub max_health: f32,
-    idle_animation: Animation,
-    sprint_animation: Animation,
-    slide_animation: Animation,
 }
 impl Player {
     pub fn new() -> Self {
@@ -40,17 +38,6 @@ impl Player {
             on_ground: false,
             head_covered: false,
             standing: true,
-
-            // assets
-            idle_animation: Animation::from_file(include_bytes!(
-                "../assets/entities/player/idle.ase"
-            )),
-            sprint_animation: Animation::from_file(include_bytes!(
-                "../assets/entities/player/sprint.ase"
-            )),
-            slide_animation: Animation::from_file(include_bytes!(
-                "../assets/entities/player/slide.ase"
-            )),
         }
     }
     fn can_slide(&self) -> bool {
@@ -149,24 +136,24 @@ impl Player {
                 max_delta * if delta < 0.0 { -1.0 } else { 1.0 } + self.pos.y.floor();
         }
     }
-    pub fn draw(&self, ctx: &ScreenUpdateContext) {
+    pub fn draw(&self, layer: &mut RenderLayer) {
         let animation = if !self.standing {
-            &self.slide_animation
+            AnimationID::PlayerSlide
         } else if self.velocity.length() != 0.0 {
-            &self.sprint_animation
+            AnimationID::PlayerSprint
         } else {
-            &self.idle_animation
+            AnimationID::PlayerIdle
         };
-        set_camera(&ctx.render_layers.entities);
-        draw_texture_ex(
-            animation.get_at_time(self.anim_frame),
+
+        layer.calls.push(DrawCall::Animation(
+            animation,
+            self.anim_frame,
             self.pos.floor().x - 4.0,
             self.pos.floor().y - 8.0,
-            WHITE,
-            DrawTextureParams {
+            Some(DrawTextureParams {
                 flip_x: !self.facing_right,
                 ..Default::default()
-            },
-        );
+            }),
+        ));
     }
 }

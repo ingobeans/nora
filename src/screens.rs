@@ -1,51 +1,19 @@
-use std::marker::PhantomData;
-
+use enum_iterator::Sequence;
 use macroquad::prelude::*;
 use struct_iterable::Iterable;
 
 use crate::{
-    assets::{Animation, Assets},
+    assets::{Animation, AnimationID, Assets},
     entity::{HumanoidEnemy, NonPlayerEntity},
+    graphics::{DrawCall, RenderLayers},
     player::Player,
     utils::*,
 };
 
-pub struct CameraBundle {
-    /// World layers are not cleared every frame, as they are intended to be static.
-    pub world: Camera2D,
-    /// World layers are not cleared every frame, as they are intended to be static.
-    pub world_foreground: Camera2D,
-    /// Render layer entities are drawn onto.
-    pub entities: Camera2D,
-    /// Unused as of yet. Should be unaffected to manipulations to the rendering.
-    pub ui: Camera2D,
-}
-impl CameraBundle {
-    pub fn new() -> Self {
-        Self {
-            world: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
-            entities: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
-            world_foreground: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
-            ui: create_camera(SCREEN_WIDTH, SCREEN_HEIGHT),
-        }
-    }
-    pub fn get_redrawn(&self) -> [&Camera2D; 2] {
-        [&self.entities, &self.ui]
-    }
-    pub fn get_all(&self) -> [&Camera2D; 4] {
-        [
-            &self.world,
-            &self.entities,
-            &self.world_foreground,
-            &self.ui,
-        ]
-    }
-}
-
 pub struct ScreenUpdateContext<'a> {
     pub player: &'a mut Player,
     pub assets: &'a Assets,
-    pub render_layers: &'a CameraBundle,
+    pub render_layers: &'a mut RenderLayers,
 }
 pub enum ScreenUpdateResult {
     /// Does nothing special
@@ -61,7 +29,7 @@ pub trait Screen {
     fn draw(&mut self, ctx: ScreenUpdateContext) {}
 }
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq, Hash, enum_iterator::Sequence)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, Hash, Sequence)]
 pub enum ScreenID {
     Test,
 }
@@ -70,45 +38,19 @@ impl Into<usize> for ScreenID {
         self as usize
     }
 }
-pub struct Registry<A, T> {
-    values: Vec<T>,
-    id_type: PhantomData<A>,
-}
-impl<A: enum_iterator::Sequence + Into<usize>, T> Registry<A, T> {
-    pub fn new(assets: &Assets, create_function: Box<dyn Fn(A, &Assets) -> T>) -> Self {
-        let mut screens = Vec::new();
-        for id in enum_iterator::all::<A>() {
-            screens.push(create_function(id, assets));
-        }
 
-        Self {
-            values: screens,
-            id_type: PhantomData,
-        }
-    }
-    pub fn get(&self, id: A) -> &T {
-        &self.values[id.into()]
-    }
-    pub fn get_mut(&mut self, id: A) -> &mut T {
-        &mut self.values[id.into()]
-    }
-}
-
-pub fn create_screen_registry(assets: &Assets) -> Registry<ScreenID, Box<dyn Screen>> {
-    let f = Box::new(|id: ScreenID, _: &Assets| {
-        let b: Box<dyn Screen> = match id {
-            ScreenID::Test => Box::new(TilemapScreen::new(
-                include_str!("../assets/screens/test.tmx"),
-                vec![Box::new(HumanoidEnemy::new(
-                    Vec2::new(25.0, 17.0) * 8.0,
-                    Animation::from_file(include_bytes!("../assets/entities/enemy.ase")),
-                    0.4,
-                ))],
-            )),
-        };
-        b
+pub fn create_screen_registry() -> Registry<ScreenID, Box<dyn Screen>> {
+    let f: Box<dyn Fn(ScreenID) -> Box<dyn Screen>> = Box::new(|id| match id {
+        ScreenID::Test => Box::new(TilemapScreen::new(
+            include_str!("../assets/screens/test.tmx"),
+            vec![Box::new(HumanoidEnemy::new(
+                Vec2::new(25.0, 17.0) * 8.0,
+                AnimationID::PlayerSprint,
+                0.4,
+            ))],
+        )),
     });
-    Registry::new(assets, f)
+    Registry::new(f)
 }
 
 type Tiles = Vec<usize>;
@@ -150,21 +92,19 @@ impl Map {
             &self.detail2,
         ]
     }
-    fn draw(&self, ctx: &ScreenUpdateContext) {
-        set_camera(&ctx.render_layers.world);
+    fn draw(&self, ctx: &mut ScreenUpdateContext) {
         for layer in self.layers().iter() {
             for (index, tile) in layer.iter().enumerate() {
                 if let Some(tile) = tile.checked_sub(1) {
                     let x = (index % 48) as f32;
                     let y = (index / 48) as f32;
 
-                    ctx.assets.tileset.draw_sprite(
-                        x * 8.0,
-                        y * 8.0,
+                    ctx.render_layers.world.calls.push(DrawCall::Tileset(
                         (tile % 64) as f32,
                         (tile / 64) as f32,
-                        None,
-                    );
+                        x * 8.0,
+                        y * 8.0,
+                    ));
                 }
             }
         }
@@ -213,8 +153,8 @@ impl TilemapScreen {
     }
 }
 impl Screen for TilemapScreen {
-    fn on_load(&mut self, ctx: ScreenUpdateContext) {
-        self.map.draw(&ctx);
+    fn on_load(&mut self, mut ctx: ScreenUpdateContext) {
+        self.map.draw(&mut ctx);
     }
     fn update(&mut self, mut ctx: ScreenUpdateContext) -> ScreenUpdateResult {
         for entity in self.entities.iter_mut() {
@@ -223,23 +163,29 @@ impl Screen for TilemapScreen {
         ctx.player.update(&self.map);
         ScreenUpdateResult::Pass
     }
-    fn draw(&mut self, ctx: ScreenUpdateContext) {
-        for entity in self.entities.iter() {
-            entity.draw(&ctx);
+    fn draw(&mut self, mut ctx: ScreenUpdateContext) {
+        for layer in ctx.render_layers.get_redrawn() {
+            layer.calls.push(DrawCall::Clear(BLACK.with_alpha(0.0)));
         }
-        ctx.player.draw(&ctx);
-        set_camera(&ctx.render_layers.ui);
+        for entity in self.entities.iter() {
+            entity.draw(&mut ctx);
+        }
+        ctx.player.draw(&mut ctx.render_layers.entities);
+
         let width = 64.0;
         let height = 8.0;
-        draw_rectangle(4.0, 4.0, width, height, BLACK);
+        ctx.render_layers
+            .ui
+            .calls
+            .push(DrawCall::Rect(4.0, 4.0, width, height, BLACK));
         if ctx.player.health > 0.0 {
-            draw_rectangle(
+            ctx.render_layers.ui.calls.push(DrawCall::Rect(
                 4.0,
                 4.0,
                 ctx.player.health / ctx.player.max_health * width,
                 height,
                 GREEN,
-            );
+            ));
         }
     }
 }

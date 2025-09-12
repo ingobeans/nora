@@ -1,20 +1,52 @@
 use asefile::AsepriteFile;
+use enum_iterator::Sequence;
 use image::EncodableLayout;
 use macroquad::prelude::*;
+
+use crate::utils::Registry;
+
+#[derive(Sequence, Clone, Copy, Debug)]
+pub enum AnimationID {
+    PlayerIdle,
+    PlayerSprint,
+    PlayerSlide,
+    TestBox,
+}
+impl Into<usize> for AnimationID {
+    fn into(self) -> usize {
+        self as usize
+    }
+}
 
 /// An immutable collection of all the game's assets.
 ///
 /// Please dont mutate.
 pub struct Assets {
     pub tileset: Spritesheet,
+    pub animations: Registry<AnimationID, Animation>,
 }
 impl Assets {
     pub fn load() -> Self {
+        let animation_fn: Box<dyn Fn(AnimationID) -> Animation> = Box::new(|id| match id {
+            AnimationID::PlayerIdle => {
+                Animation::from_file(include_bytes!("../assets/entities/player/idle.ase"))
+            }
+            AnimationID::PlayerSprint => {
+                Animation::from_file(include_bytes!("../assets/entities/player/sprint.ase"))
+            }
+            AnimationID::PlayerSlide => {
+                Animation::from_file(include_bytes!("../assets/entities/player/slide.ase"))
+            }
+            AnimationID::TestBox => {
+                Animation::from_file(include_bytes!("../assets/entities/enemy.ase"))
+            }
+        });
         Self {
             tileset: Spritesheet::new(
                 load_ase_texture(include_bytes!("../assets/tileset.ase"), None),
                 8.0,
             ),
+            animations: Registry::new(animation_fn),
         }
     }
 }
@@ -30,24 +62,17 @@ impl Spritesheet {
             sprite_size,
         }
     }
-    pub fn draw_sprite(
-        &self,
-        screen_x: f32,
-        screen_y: f32,
-        tile_x: f32,
-        tile_y: f32,
-        params: Option<&DrawTextureParams>,
-    ) {
-        let mut p = params.cloned().unwrap_or(DrawTextureParams::default());
-        p.dest_size = p
-            .dest_size
-            .or(Some(Vec2::new(self.sprite_size, self.sprite_size)));
-        p.source = p.source.or(Some(Rect {
-            x: tile_x * self.sprite_size,
-            y: tile_y * self.sprite_size,
-            w: self.sprite_size,
-            h: self.sprite_size,
-        }));
+    pub fn draw_sprite(&self, screen_x: f32, screen_y: f32, tile_x: f32, tile_y: f32) {
+        let p = DrawTextureParams {
+            dest_size: Some(Vec2::new(self.sprite_size, self.sprite_size)),
+            source: Some(Rect {
+                x: tile_x * self.sprite_size,
+                y: tile_y * self.sprite_size,
+                w: self.sprite_size,
+                h: self.sprite_size,
+            }),
+            ..Default::default()
+        };
         draw_texture_ex(&self.texture, screen_x, screen_y, WHITE, p);
     }
 }
