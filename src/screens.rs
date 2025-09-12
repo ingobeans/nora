@@ -12,7 +12,6 @@ use crate::{
 
 pub struct ScreenUpdateContext<'a> {
     pub player: &'a mut Player,
-    pub assets: &'a Assets,
     pub render_layers: &'a mut RenderLayers,
 }
 pub enum ScreenUpdateResult {

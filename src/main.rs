@@ -50,7 +50,6 @@ async fn main() {
             screen.on_load(
                 ScreenUpdateContext {
                     player: &mut player,
-                    assets: &assets,
                     render_layers: &mut render_layers,
                 },
                 i,
