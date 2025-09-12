@@ -200,9 +200,9 @@ impl Screen for TilemapScreen {
     fn on_load(&mut self, ctx: ScreenUpdateContext) {
         self.map.draw(&ctx);
     }
-    fn update(&mut self, ctx: ScreenUpdateContext) -> ScreenUpdateResult {
+    fn update(&mut self, mut ctx: ScreenUpdateContext) -> ScreenUpdateResult {
         for entity in self.entities.iter_mut() {
-            entity.update(&self.map, &ctx);
+            entity.update(&self.map, &mut ctx);
         }
         ctx.player.update(&self.map);
         ScreenUpdateResult::Pass
@@ -212,5 +212,18 @@ impl Screen for TilemapScreen {
             entity.draw(&ctx);
         }
         ctx.player.draw(&ctx);
+        set_camera(&ctx.render_layers.ui);
+        let width = 64.0;
+        let height = 8.0;
+        draw_rectangle(4.0, 4.0, width, height, BLACK);
+        if ctx.player.health > 0.0 {
+            draw_rectangle(
+                4.0,
+                4.0,
+                ctx.player.health / ctx.player.max_health * width,
+                height,
+                GREEN,
+            );
+        }
     }
 }

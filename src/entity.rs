@@ -12,7 +12,7 @@ fn ceil_g(a: f32) -> f32 {
 
 #[expect(unused_variables)]
 pub trait NonPlayerEntity {
-    fn update(&mut self, map: &Map, ctx: &ScreenUpdateContext) {}
+    fn update(&mut self, map: &Map, ctx: &mut ScreenUpdateContext) {}
     fn draw(&self, ctx: &ScreenUpdateContext) {}
 }
 pub struct HumanoidEnemy {
@@ -45,7 +45,7 @@ impl NonPlayerEntity for HumanoidEnemy {
             WHITE,
         );
     }
-    fn update(&mut self, map: &Map, ctx: &ScreenUpdateContext) {
+    fn update(&mut self, map: &Map, ctx: &mut ScreenUpdateContext) {
         self.anim_frame += 1000 / 60;
         let mut forces = Vec2::ZERO;
         let player_delta = ctx.player.pos - self.pos;
@@ -70,6 +70,9 @@ impl NonPlayerEntity for HumanoidEnemy {
             if should_jump && self.on_ground {
                 forces.y -= 8.5;
             }
+        } else {
+            // attack player
+            ctx.player.health -= 10.0;
         }
         forces.x -= self.velocity.x
             * if self.on_ground {

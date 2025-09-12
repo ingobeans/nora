@@ -2,7 +2,7 @@ use macroquad::prelude::*;
 
 use crate::{
     assets::*,
-    entity::{NonPlayerEntity, update_physics_entity},
+    entity::update_physics_entity,
     screens::{Map, ScreenUpdateContext},
     utils::*,
 };
@@ -17,6 +17,8 @@ pub struct Player {
     pub head_covered: bool,
     pub jump_frames: u8,
     pub standing: bool,
+    pub health: f32,
+    pub max_health: f32,
     idle_animation: Animation,
     sprint_animation: Animation,
     slide_animation: Animation,
@@ -24,15 +26,22 @@ pub struct Player {
 impl Player {
     pub fn new() -> Self {
         Self {
+            // public states
             pos: Vec2::ZERO,
             camera_pos: Vec2::ZERO,
             velocity: Vec2::ZERO,
+            max_health: 100.0,
+            health: 100.0,
+
+            // internal states
             anim_frame: 0,
             jump_frames: 0,
             facing_right: true,
             on_ground: false,
             head_covered: false,
             standing: true,
+
+            // assets
             idle_animation: Animation::from_file(include_bytes!(
                 "../assets/entities/player/idle.ase"
             )),
