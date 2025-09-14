@@ -31,7 +31,7 @@ async fn main() {
 
     set_default_camera();
 
-    let mut current_screen = screens::ScreenID::Street;
+    let mut current_screen = screens::ScreenID::Level1;
     let mut spawn: Option<usize> = Some(0);
 
     loop {

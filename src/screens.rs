@@ -33,7 +33,14 @@ pub trait Screen {
 #[derive(Clone, Debug, Copy, PartialEq, Eq, Hash, Sequence)]
 pub enum ScreenID {
     Test,
-    Street,
+    Level1,
+    Level2,
+    Level3,
+    Level4,
+    Level5,
+    Level6,
+    Level7,
+    Level8,
 }
 impl From<ScreenID> for usize {
     fn from(val: ScreenID) -> Self {
@@ -50,13 +57,44 @@ pub fn create_screen_registry() -> Registry<ScreenID, Box<dyn Screen>> {
                 AnimationID::PlayerSprint,
                 0.4,
             ))],
-            vec![(ScreenID::Street, 1), (ScreenID::Street, 0)],
+            vec![(ScreenID::Level1, 1), (ScreenID::Level1, 0)],
         )),
-        ScreenID::Street => Box::new(TilemapScreen::new(
-            include_str!("../assets/screens/street.tmx"),
+        ScreenID::Level1 => Box::new(TilemapScreen::new(
+            include_str!("../assets/screens/1.tmx"),
             vec![],
-            vec![(ScreenID::Test, 1), (ScreenID::Test, 0)],
+            vec![(ScreenID::Level2, 0)],
         )),
+        ScreenID::Level2 => Box::new(TilemapScreen::new(
+            include_str!("../assets/screens/2.tmx"),
+            vec![],
+            vec![(ScreenID::Level1, 1), (ScreenID::Level3, 0)],
+        )),
+        ScreenID::Level3 => Box::new(TilemapScreen::new(
+            include_str!("../assets/screens/3.tmx"),
+            vec![],
+            vec![(ScreenID::Level2, 1), (ScreenID::Level4, 0)],
+        )),
+        ScreenID::Level4 => Box::new(TilemapScreen::new(
+            include_str!("../assets/screens/4.tmx"),
+            vec![],
+            vec![(ScreenID::Level3, 1), (ScreenID::Level5, 0)],
+        )),
+        ScreenID::Level5 => Box::new(TilemapScreen::new(
+            include_str!("../assets/screens/5.tmx"),
+            vec![],
+            vec![(ScreenID::Level4, 1), (ScreenID::Level6, 0)],
+        )),
+        ScreenID::Level6 => Box::new(TilemapScreen::new(
+            include_str!("../assets/screens/6.tmx"),
+            vec![],
+            vec![(ScreenID::Level5, 1), (ScreenID::Level7, 0)],
+        )),
+        ScreenID::Level7 => Box::new(TilemapScreen::new(
+            include_str!("../assets/screens/7.tmx"),
+            vec![],
+            vec![(ScreenID::Level6, 1), (ScreenID::Level8, 0)],
+        )),
+        ScreenID::Level8 => Box::new(WinScreen::new(include_str!("../assets/screens/win.tmx"))),
     });
     Registry::new(f)
 }
@@ -156,6 +194,27 @@ fn parse_tilemap_layer(xml: &str, layer_name: &str) -> Tiles {
     }
     data
 }
+
+struct WinScreen {
+    map: Map,
+}
+impl WinScreen {
+    fn new(file: &str) -> Self {
+        Self {
+            map: Map::from_file(file),
+        }
+    }
+}
+impl Screen for WinScreen {
+    fn on_load(&mut self, mut ctx: ScreenUpdateContext, spawn_index: usize) {
+        self.map.draw(&mut ctx);
+    }
+    fn draw(&mut self, ctx: ScreenUpdateContext) {
+        for layer in ctx.render_layers.get_redrawn() {
+            layer.calls.push(DrawCall::Clear(BLACK.with_alpha(0.0)));
+        }
+    }
+}
 struct TilemapScreen {
     map: Map,
     entities: Vec<Box<dyn NonPlayerEntity>>,
@@ -203,6 +262,10 @@ impl Screen for TilemapScreen {
             let target = self.linked_screens[tile - 4];
             return ScreenUpdateResult::ChangeScreen(target.0, target.1);
         }
+        if tile == 12 {
+            let p = self.map.find_special_tile(7).unwrap();
+            ctx.player.pos = Vec2::new(p.0 as f32 * 8.0, p.1 as f32 * 8.0)
+        }
         ScreenUpdateResult::Pass
     }
     fn draw(&mut self, mut ctx: ScreenUpdateContext) {
@@ -213,21 +276,5 @@ impl Screen for TilemapScreen {
             entity.draw(&mut ctx);
         }
         ctx.player.draw(&mut ctx.render_layers.entities);
-
-        let width = 64.0;
-        let height = 8.0;
-        ctx.render_layers
-            .ui
-            .calls
-            .push(DrawCall::Rect(4.0, 4.0, width, height, BLACK));
-        if ctx.player.health > 0.0 {
-            ctx.render_layers.ui.calls.push(DrawCall::Rect(
-                4.0,
-                4.0,
-                ctx.player.health / ctx.player.max_health * width,
-                height,
-                GREEN,
-            ));
-        }
     }
 }
